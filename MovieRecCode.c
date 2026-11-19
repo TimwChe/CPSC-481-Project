@@ -27,6 +27,30 @@ struct UserProfile {
     std::vector<UserRating> ratingHistory;
 };
 
+struct RecommendationResult {
+    Movie movie;
+    double baseCosineSimilarity;
+    double contextMultiplier;
+    double finalScore;
+    std::string explanation;
+};
+
+//===================== Dataset Processing ====================================
+class DatasetManager()
+{
+public:
+    static std::vector<std::string> split(const std::string& str, char delimiter) {
+        std::vector<std::string> tokens;
+        std::stringstream ss(str);
+        std::string token;
+        while (std::getline(ss, token, delimiter)) {
+            if (!token.empty() && token != "\\N") {
+                tokens.push_back(token);
+            }
+        }
+        return tokens;
+    }
+
 
 int main()
 {
