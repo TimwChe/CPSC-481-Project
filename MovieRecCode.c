@@ -106,6 +106,54 @@ static std::vector<Movie> loadFromIMDbTSV(const std::string& basicsPath, const s
         }
         return results;
     }
+//Sample catalog for immediate testing and demonstration
+    static std::vector<Movie> loadSampleCatalog(){
+
+    }
+
+//===================== Content-Based Filtering and Cosine Similarity Engine ====================================
+class ContentBasedEngine {
+private:
+    std::unordered_map<std::string, size_t> featureVocab;
+
+    void addToken(const std::string& prefix, const std::string& value) {
+        std::string key = prefix + ":" + value;
+        if (featureVocab.find(key) == featureVocab.end()) {
+            size_t nextIdx = featureVocab.size();
+            featureVocab[key] = nextIdx;
+        }
+    }
+
+public:
+    // Builds vocabulary across all genres, directors, and actors in the dataset
+    void buildVocabulary(const std::vector<Movie>& movies) {
+        featureVocab.clear();
+        for (const auto& m : movies) {
+            for (const auto& g : m.genres) addToken("GENRE", g);
+            for (const auto& d : m.directors) addToken("DIR", d);
+            for (const auto& a : m.actors) addToken("ACT", a);
+        }
+    }
+
+    // Converts an individual Movie into a weighted feature vector
+    std::vector<double> vectorizeMovie(const Movie& movie) const {
+        std::vector<double> vec(featureVocab.size(), 0.0);
+
+        // Feature weights: Genres (1.0), Directors (0.8), Actors (0.6)
+        for (const auto& g : movie.genres) {
+            auto it = featureVocab.find("GENRE:" + g);
+            if (it != featureVocab.end()) vec[it->second] = 1.0;
+        }
+        for (const auto& d : movie.directors) {
+            auto it = featureVocab.find("DIR:" + d);
+            if (it != featureVocab.end()) vec[it->second] = 0.8;
+        }
+        for (const auto& a : movie.actors) {
+            auto it = featureVocab.find("ACT:" + a);
+            if (it != featureVocab.end()) vec[it->second] = 0.6;
+        }
+        return vec;
+    }
 
 int main()
 {
