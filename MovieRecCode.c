@@ -154,6 +154,57 @@ public:
         }
         return vec;
     }
+//Builds the User Preference Vector
+std::vector<double> buildUserVector(const UserProfile& user, const std::vector<Movie>& catalog) const {
+        std::vector<double> userVec(featureVocab.size(), 0.0);
+
+        //This loop states the user's base favorite genres
+        for (const auto& g : user.baseFavoriteGenres) {
+            auto it = featureVocab.find("GENRE:" + g);
+            if (it != featureVocab.end()) {
+                userVec[it->second] += 1.5;
+            }
+        }
+
+        //The 2nd loop finds the historical movie ratings (centered around neutral rating 2.5)
+        for (const auto& rated : user.ratingHistory) {
+            for (const auto& m : catalog) {
+                if (m.title == rated.movieTitle) {
+                    auto movieVec = vectorizeMovie(m);
+                    double weight = (rated.rating - 2.0) / 3.0; // Positive boost for >2.0, penalty for <2.0
+                    for (size_t i = 0; i < userVec.size(); ++i) {
+                        userVec[i] += movieVec[i] * weight;
+                    }
+                    break;
+                }
+            }
+        }
+
+        //This loop brings negative values to 0 for standard non-negative cosine comparison
+        for (double& val : userVec) {
+            if (val < 0.0) val = 0.0;
+        }
+        return userVec;
+    }
+
+    //This will computes the Cosine Similarity between two feature vectors
+    static double computeCosineSimilarity(const std::vector<double>& vecA, const std::vector<double>& vecB) {
+        double dotProduct = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+
+        for (size_t i = 0; i < vecA.size(); ++i) {
+            dotProduct += vecA[i] * vecB[i];
+            normA += vecA[i] * vecA[i];
+            normB += vecB[i] * vecB[i];
+        }
+
+        if (normA == 0.0 || normB == 0.0) return 0.0;
+        return dotProduct / (std::sqrt(normA) * std::sqrt(normB));
+    }
+};
+
+//========================= Context-Aware Scoring Engine =========================================
 
 int main()
 {
