@@ -205,6 +205,52 @@ std::vector<double> buildUserVector(const UserProfile& user, const std::vector<M
 };
 
 //========================= Context-Aware Scoring Engine =========================================
+class ContextAwareScorer {
+private:
+    // Maps user mood to associated film genres
+    static std::vector<std::string> getMoodGenres(const std::string& mood) {
+        std::string m = mood;
+        std::transform(m.begin(), m.end(), m.begin(), ::tolower);
+
+        if (m == "happy" || m == "upbeat" || m == "fun")
+            return {"Comedy", "Animation", "Adventure", "Music"};
+        if (m == "tense" || m == "excited" || m == "thrilled")
+            return {"Action", "Thriller", "Horror", "Crime", "Mystery"};
+        if (m == "thoughtful" || m == "intellectual" || m == "serious")
+            return {"Sci-Fi", "Drama", "Mystery"};
+        if (m == "relaxed" || m == "chill" || m == "cozy")
+            return {"Comedy", "Animation", "Romance", "Adventure"};
+        if (m == "adventurous")
+            return {"Adventure", "Action", "Sci-Fi"};
+
+        return {};
+    }
+
+public:
+    static RecommendationResult evaluateMovie(
+        const Movie& movie,
+        double baseCosineSim,
+        const ViewingContext& ctx,
+        std::ostringstream& reasonStream
+    ) {
+        double multiplier = 1.0;
+
+        // 1. time check for availability length
+        if (movie.runtimeMinutes > ctx.availableTimeMinutes) {
+            // Filter out movies that exceed available viewing time
+            return {movie, baseCosineSim, 0.0, -1.0, "Exceeds available time window."};
+        } else {
+            // A bonus for utilizing available time well (within 35 mins of limit)
+            int diff = ctx.availableTimeMinutes - movie.runtimeMinutes;
+            if (diff <= 35) {
+                multiplier += 0.15;
+                reasonStream << "[Fits " << ctx.availableTimeMinutes << "m limit well (" << movie.runtimeMinutes << "m)] ";
+            } else {
+                reasonStream << "[Runtime: " << movie.runtimeMinutes << "m] ";
+            }
+        }
+
+//Mood Alignment
 
 int main()
 {
