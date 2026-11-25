@@ -251,6 +251,107 @@ public:
         }
 
 //Mood Alignment
+auto moodTargetGenres = getMoodGenres(ctx.mood);
+        int moodMatches = 0;
+        for (const auto& mg : moodTargetGenres) {
+            if (std::find(movie.genres.begin(), movie.genres.end(), mg) != movie.genres.end()) {
+                moodMatches++;
+            }
+        }
+        if (moodMatches > 0) {
+            multiplier += 0.25 * moodMatches;
+            reasonStream << "[Matches '" << ctx.mood << "' mood] ";
+        }
+
+        // 3. CURRENT SCENARIO GENRE PREFERENCE
+        int genreMatches = 0;
+        for (const auto& dg : ctx.desiredGenres) {
+            for (const auto& mg : movie.genres) {
+                if (dg == mg) genreMatches++;
+            }
+        }
+        if (genreMatches > 0) {
+            multiplier += 0.35 * genreMatches;
+            reasonStream << "[Matches requested genre] ";
+        }
+
+        // 4. VIEWING GROUP SIZE ADAPTATION
+        if (ctx.groupSize == 1) {
+            // Solo viewing favors deep dramas, complex mysteries, or niche films
+            if (std::find(movie.genres.begin(), movie.genres.end(), "Drama") != movie.genres.end() ||
+                std::find(movie.genres.begin(), movie.genres.end(), "Mystery") != movie.genres.end()) {
+                multiplier += 0.15;
+                reasonStream << "[Great for solo immersion] ";
+            }
+        } else if (ctx.groupSize == 2) {
+            // Pair/Date night favors Romance, Thriller, Mystery, Comedy
+            if (std::find(movie.genres.begin(), movie.genres.end(), "Romance") != movie.genres.end() ||
+                std::find(movie.genres.begin(), movie.genres.end(), "Mystery") != movie.genres.end() ||
+                std::find(movie.genres.begin(), movie.genres.end(), "Comedy") != movie.genres.end()) {
+                multiplier += 0.20;
+                reasonStream << "[Ideal for 2 viewers] ";
+            }
+        } else if (ctx.groupSize >= 3) {
+            // Larger group favors high crowd-appeal and energetic genres (Action, Comedy, Horror, Animation)
+            double groupBoost = (movie.crowdAppealScore - 3.5) * 0.25;
+            multiplier += groupBoost;
+            if (movie.crowdAppealScore >= 4.6) {
+                reasonStream << "[High group crowd-pleaser (" << ctx.groupSize << " viewers)] ";
+            }
+        }
+
+        // Combine base preference similarity with situational context multiplier
+        // Adding a small base floor (0.10) ensures strong context matches still surface even for cold-start users
+        double finalScore = (baseCosineSim + 0.10) * multiplier;
+
+        return {movie, baseCosineSim, multiplier, finalScore, reasonStream.str()};
+    }
+};
+
+//================== User Interface ===================================
+class PredictFlixApp {
+private:
+    std::vector<Movie> catalog;
+    ContentBasedEngine cbEngine;
+
+public:
+    void initialize() {
+        // Attempt to load IMDb TSVs if placed in working directory; otherwise use rich sample dataset
+        catalog = DatasetManager::loadFromIMDbTSV("title.basics.tsv", "title.crew.tsv");
+        if (catalog.empty()) {
+            std::cout << "[System] IMDb TSV files not detected in root directory. Loaded built-in 20-movie dataset.\n";
+            catalog = DatasetManager::loadSampleCatalog();
+        } else {
+            std::cout << "[System] Loaded " << catalog.size() << " movies from IMDb TSV datasets.\n";
+        }
+        cbEngine.buildVocabulary(catalog);
+    }
+
+    std::vector<RecommendationResult> recommend(const UserProfile& user, const ViewingContext& context, size_t topK = 5) {
+        auto userVec = cbEngine.buildUserVector(user, catalog);
+
+        // Track already-watched movies so we only recommend fresh titles
+        std::unordered_set<std::string> watched;
+        for (const auto& r : user.ratingHistory) {
+            watched.insert(r.movieTitle);
+        }
+
+        std::vector<RecommendationResult> candidates;
+        for (const auto& movie : catalog) {
+            if (watched.count(movie.title)) continue;
+
+            auto movieVec = cbEngine.vectorizeMovie(movie);
+            double cosineSim = ContentBasedEngine::computeCosineSimilarity(userVec, movieVec);
+
+            std::ostringstream reasonStream;
+            auto eval = ContextAwareScorer::evaluateMovie(movie, cosineSim, context, reasonStream);
+
+            if (eval.finalScore >= 0.0) {
+                candidates.push_back(eval);
+            }
+        }
+
+//Sort descending filter by Final Context-Adjusted Score
 
 int main()
 {
