@@ -352,9 +352,52 @@ public:
         }
 
 //Sort descending filter by Final Context-Adjusted Score
+std::sort(candidates.begin(), candidates.end(), [](const RecommendationResult& a, const RecommendationResult& b) {
+            return a.finalScore > b.finalScore;
+        });
+
+        if (candidates.size() > topK) {
+            candidates.resize(topK);
+        }
+        return candidates;
+    }
+
+    static void printRecommendations(const UserProfile& user, const ViewingContext& ctx, const std::vector<RecommendationResult>& results) {
+        std::cout << "\n================================================================================\n";
+        std::cout << " PREDICTFLIX RECOMMENDATIONS FOR: " << user.username << "\n";
+        std::cout << " Scenario -> Mood: " << ctx.mood
+                  << " | Time Limit: " << ctx.availableTimeMinutes << " mins"
+                  << " | Group Size: " << ctx.groupSize << " person(s)\n";
+        std::cout << "================================================================================\n";
+
+        if (results.empty()) {
+            std::cout << " No movies matched your time constraint (" << ctx.availableTimeMinutes << " mins). Try increasing available time!\n";
+            return;
+        }
+
+        int rank = 1;
+        for (const auto& res : results) {
+            std::cout << "#" << rank++ << " " << res.movie.title << " (" << res.movie.releaseYear << ")\n";
+            std::cout << "   Genres: ";
+            for (size_t i = 0; i < res.movie.genres.size(); ++i) {
+                std::cout << res.movie.genres[i] << (i + 1 < res.movie.genres.size() ? ", " : "");
+            }
+            std::cout << " | Director: " << (res.movie.directors.empty() ? "N/A" : res.movie.directors[0]) << "\n";
+            std::cout << std::fixed << std::setprecision(3);
+            std::cout << "   Base Cosine Similarity: " << res.baseCosineSimilarity
+                      << " | Context Multiplier: " << res.contextMultiplier << "x"
+                      << " | Final Score: " << res.finalScore << "\n";
+            std::cout << "   Why it fits now: " << res.explanation << "\n\n";
+        }
+    }
+};
 
 int main()
 {
+    PredictFlixApp app;
+    app.initialize();
 
-  return 0;
+    // Create a user profile
+    UserProfile user; 
+    return 0;
 }
