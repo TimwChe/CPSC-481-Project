@@ -106,10 +106,6 @@ static std::vector<Movie> loadFromIMDbTSV(const std::string& basicsPath, const s
         }
         return results;
     }
-//Sample catalog for immediate testing and demonstration
-    static std::vector<Movie> loadSampleCatalog(){
-
-    }
 
 //===================== Content-Based Filtering and Cosine Similarity Engine ====================================
 class ContentBasedEngine {
@@ -398,6 +394,62 @@ int main()
     app.initialize();
 
     // Create a user profile
-    UserProfile user; 
+    UserProfile user;
+    user.username = "Alex_CPSC";
+    user.baseFavoriteGenres = {"Sci-Fi", "Action", "Thriller"};
+    user.ratingHistory = {
+        {"Inception", 5.0},
+        {"The Matrix", 4.8},
+        {"Shutter Island", 4.5}
+    };
+
+    std::cout << "\n--- User Base Profile Loaded ---\n";
+    std::cout << "User: " << user.username << "\n";
+    std::cout << "Base Favorite Genres: Sci-Fi, Action, Thriller\n";
+    std::cout << "Past Rated Movies: Inception (5.0/5), The Matrix (4.8/5), Shutter Island (4.5/5)\n";
+
+    //Scenario A: Solo Weeknight (Short on time, wants tense thriller/sci-fi under 110 mins)
+    ViewingContext scenarioA{
+        "Tense",                // Mood
+        110,                    // Available Time (Minutes)
+        {"Thriller", "Sci-Fi"}, // Desired Genres
+        1                       // Viewing Group Size (Solo)
+    };
+    auto recsA = app.recommend(user, scenarioA, 3);
+    PredictFlixApp::printRecommendations(user, scenarioA, recsA);
+
+    //Scenario B: Weekend Movie Night with Friends (2.5 hours available, upbeat mood, group of 5)
+    ViewingContext scenarioB{
+        "Happy",                         // Mood
+        150,                             // Available Time (Minutes)
+        {"Comedy", "Adventure", "Action"}, // Desired Genres
+        5                                // Viewing Group Size (Party of 5)
+    };
+    auto recsB = app.recommend(user, scenarioB, 3);
+    PredictFlixApp::printRecommendations(user, scenarioB, recsB);
+
+    //Custom Scenario prompt that is interactive
+    char choice;
+    std::cout << "Would you like to test a custom scenario interactively? (y/n): ";
+    if (std::cin >> choice && (choice == 'y' || choice == 'Y')) {
+        ViewingContext customCtx;
+        std::cout << "Enter current mood (Happy / Tense / Thoughtful / Relaxed / Adventurous): ";
+        std::cin >> customCtx.mood;
+
+        std::cout << "Enter available time in minutes (e.g., 95, 120, 160): ";
+        std::cin >> customCtx.availableTimeMinutes;
+
+        std::cout << "Enter preferred genre for this session (e.g., Comedy, Action, Sci-Fi, Mystery, Drama, Horror): ";
+        std::string genreInput;
+        std::cin >> genreInput;
+        customCtx.desiredGenres = {genreInput};
+
+        std::cout << "Enter viewing group size (1 = Solo, 2 = Pair, 3+ = Group): ";
+        std::cin >> customCtx.groupSize;
+
+        auto customRecs = app.recommend(user, customCtx, 5);
+        PredictFlixApp::printRecommendations(user, customCtx, customRecs);
+    }
+    
     return 0;
 }
